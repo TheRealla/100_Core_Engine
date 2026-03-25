@@ -1,0 +1,19 @@
+{
+  "project": "System-100X",
+  "version": "1.0.0",
+  "license": "Seals Estate",
+  "sequencer_182": {
+    "steps": 16,
+    "quantize": "Phrygian",
+    "entropy": 0.45
+  },
+  "wiring_loom": [
+    { "src": "Seq182", "dst": "Entropy182E", "srcPort": "CV Out", "dstPort": "Raw CV" },
+    { "src": "Entropy182E", "dst": "Port165", "srcPort": "Drift Out", "dstPort": "Pitch In" },
+    { "src": "Port165", "dst": "VCO112", "srcPort": "Pitch Out", "dstPort": "VCO CV" }
+  ],
+  "temanforce": {
+    "tension": 0.88,
+    "hysteresis": true
+  }
+}
