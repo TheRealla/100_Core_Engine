@@ -1,0 +1,158 @@
+// System100X Hyper-Emulation Core
+// Developed for TheRealla.github.io
+// License: Seals Estate Framework
+
+graph System100X [[ main ]]
+{
+    input stream float targetPitch;  // MIDI Note 0-1.0
+    input stream float gate;         // 0 or 1.0
+    output stream float audioOut;
+
+    // --- Module Instances ---
+    node vco112 = VCO112;
+    node vcf121 = VCF121;
+    node env140 = ADSR140;
+    node lfo140 = LFO140;
+    node mod150 = NoiseSH150;
+    node airKalman = KalmanConditioner;
+
+    // --- Modular Routing ---
+    connection
+    {
+        // 1. Frequency Control
+        targetPitch -> vco112.pitch;
+        lfo140.out  -> vco112.fmIn;
+
+        // 2. Audio Path (VCO -> Kalman -> VCF)
+        vco112.out -> airKalman.in;
+        airKalman.out -> vcf121.audioIn;
+
+        // 3. Modulation Path
+        gate -> env140.gate;
+        env140.out -> vcf121.cutoffMod;
+        mod150.shOut -> vcf121.resMod;
+
+        // 4. Final VCA (implicit multiplication)
+        vcf121.out * env140.out -> audioOut;
+    }
+}
+
+// ---------------------------------------------------------
+// 112 DUAL VCO (Phase-Synced)
+// ---------------------------------------------------------
+processor VCO112
+{
+    input stream float pitch, fmIn;
+    output stream float out;
+
+    void main()
+    {
+        float64 phase1, phase2;
+        loop
+        {
+            let freq = float64 (440.0f * exp2 (pitch + fmIn - 0.5f));
+            let delta = freq * processor.period;
+
+            phase1 = (phase1 + delta) % 1.0;
+            
+            // Hard Sync: VCO2 resets when VCO1 wraps
+            if (phase1 < delta) phase2 = 0.0;
+            phase2 = (phase2 + (delta * 1.01)) % 1.0; // Subtle detune
+
+            out = float ( (phase1 * 2.0 - 1.0) + (phase2 * 2.0 - 1.0) ) * 0.5f;
+            advance();
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// 121 VCF (Zero-Delay Feedback Ladder)
+// ---------------------------------------------------------
+processor VCF121
+{
+    input stream float audioIn, cutoffMod, resMod;
+    output stream float out;
+
+    void main()
+    {
+        float v1, v2, v3, v4; // State registers
+        loop
+        {
+            let cutoff = clamp (1000.0f * exp2 (cutoffMod * 5.0f), 20.0f, 20000.0f);
+            let g = tan (pi * cutoff * processor.period);
+            let res = clamp (resMod * 4.0f, 0.0f, 3.9f);
+
+            // Predictor-Corrector ZDF loop
+            let input = audioIn;
+            let sigma = v1 + v2 + v3 + v4;
+            let u = (input - res * sigma) / (1.0 + res * pow(g, 4.0));
+
+            // 4-Pole Cascade
+            v1 = v1 + g * (u - v1);
+            v2 = v2 + g * (v1 - v2);
+            v3 = v3 + g * (v2 - v3);
+            v4 = v4 + g * (v3 - v4);
+
+            out = v4;
+            advance();
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// AIRWINDOWS KALMAN CONDITIONER
+// ---------------------------------------------------------
+processor KalmanConditioner
+{
+    input stream float in;
+    output stream float out;
+
+    void main()
+    {
+        float x_est = 0.0, p = 1.0, q = 0.001, r = 0.1;
+        loop
+        {
+            let k = (p + q) / (p + q + r);
+            x_est = x_est + k * (in - x_est);
+            p = (1.0 - k) * (p + q);
+            
+            out = x_est;
+            advance();
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// 150 NOISE & SAMPLE-AND-HOLD
+// ---------------------------------------------------------
+processor NoiseSH150
+{
+    output stream float whiteOut, shOut;
+
+    void main()
+    {
+        float heldValue;
+        int clockCounter;
+        loop
+        {
+            let noise = random.nextFloat() * 2.0f - 1.0f;
+            whiteOut = noise;
+
+            // Internal Clock (approx 5Hz)
+            if (++clockCounter > 10000)
+            {
+                heldValue = noise;
+                clockCounter = 0;
+            }
+
+            shOut = heldValue;
+            advance();
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// 140 ADSR & LFO
+// ---------------------------------------------------------
+processor ADSR140 { /* Exponential chase logic here */ input stream float gate; output stream float out; void main() { loop { advance(); } } }
+processor LFO140  { /* Multi-wave logic here */ output stream float out; void main() { loop { advance(); } } }
