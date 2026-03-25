@@ -1,0 +1,4 @@
+mkdir ProjucerProject/build && cd ProjucerProject/build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make ReallaFlagship_VST3
+
