@@ -1,4 +1,4 @@
-E3
+
 ---
 
 # System‑100X: TheRealla Edition
