@@ -1,0 +1,16 @@
+name: System-100X CI
+on: [push]
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: pip install mkdocs-material
+      - run: mkdocs gh-deploy --force
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: MSV-SpyBlocker Check
+        run: |
+          chmod +x ./MSV-SpyBlocker.sh
+          ./MSV-SpyBlocker.sh
