@@ -1,0 +1,4 @@
+cmajor compile ReallaFlagship.cmajor --target juceplugin --output-dir build
+cd build/JuceProgen
+projucer --resave ProjucerProject.jproj
+
