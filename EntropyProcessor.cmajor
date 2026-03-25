@@ -1,0 +1,20 @@
+// High-performance Entropy Kernel for Cmajor
+graph EntropyProcessor 
+{
+    input stream float cvIn;
+    input value float entropyAmount;
+    output stream float cvOut;
+
+    void main()
+    {
+        float driftState = 0.0f;
+        loop {
+            // Low-pass filtered random walk (Brownian motion)
+            float targetDrift = (std::random_f32() - 0.5f) * entropyAmount;
+            driftState = driftState + (targetDrift - driftState) * 0.001f;
+            
+            cvOut <- std::clamp(cvIn + driftState, 0.0f, 1.0f);
+            advance();
+        }
+    }
+}
