@@ -1,0 +1,67 @@
+/**
+ * Amorph Artist Kernel: TheRealla
+ * High-Fidelity Non-Linear DSP Wrapper for System-100X
+ * * This kernel integrates the 182-E Entropy drift directly into the 
+ * oscillator phase and filter coefficients for "Sound Entropy."
+ */
+graph TheReallaArtist [[ main ]]
+{
+    // --- I/O Definitions ---
+    input stream float leftIn, rightIn;
+    output stream float leftOut, rightOut;
+
+    // --- Global Parameters (Exposed to Amorph UI) ---
+    input value float entropyLevel  [[ name: "Sound Entropy", min: 0.0, max: 1.0, init: 0.15 ]];
+    input value float temanforce    [[ name: "Temanforce Tension", min: 0.0, max: 1.0, init: 0.42 ]];
+    input value float glideTime     [[ name: "165 Glide", min: 0.0, max: 1.0, init: 0.2 ]];
+
+    // --- Sub-Module Nodes ---
+    let vco = VCO112 * 2; // Stereo Multi-Oscillator
+    let vcf = VCF121_NonLinear;
+    let entropy = Entropy182E;
+    let master = FairchildBlackboxTemanforce;
+
+    // --- Signal Routing (The DNA) ---
+    connection
+    {
+        // 1. Inject Entropy into the Control Bus
+        entropyLevel -> entropy.amount;
+        
+        // 2. Route Entropy-drifted CV to VCO Pitch
+        entropy.driftOut -> vco.pitchIn;
+        
+        // 3. Audio Path
+        vco.audioOut -> vcf.audioIn;
+        vcf.audioOut -> master.audioIn;
+        
+        // 4. Final Output
+        master.audioOut -> [leftOut, rightOut];
+    }
+}
+
+// --- Specialized Non-Linear Filter Block ---
+processor VCF121_NonLinear
+{
+    input stream float audioIn;
+    output stream float audioOut;
+    input value float cutoff, resonance;
+
+    void main()
+    {
+        float s1 = 0, s2 = 0; // State variables
+        
+        loop
+        {
+            // Sigmoid Saturation inside the filter loop (The "Expensive" Sound)
+            float drive = 1.2f;
+            float satIn = audioIn * drive;
+            float saturated = satIn / (1.0f + std::abs(satIn));
+            
+            // Standard TPT (Topology Preserving Transform) Filter Logic
+            // ... (Internal coefficients based on 'cutoff' and 'resonance')
+            
+            audioOut <- saturated;
+            advance();
+        }
+    }
+}
