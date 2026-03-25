@@ -2,31 +2,35 @@
 #include <JuceHeader>
 
 /**
- * System-100X Engine
- * Implements Non-Linear Hysteresis and 182-E Entropy Drift.
+ * System-100X Core Engine
+ * Manages 10-module signal path and Transcendental DSP curves.
  */
-class System100XEngine 
+class System100XEngine
 {
 public:
-    System100XEngine();
-    
-    // --- Transcendental DSP ---
-    float applyTemanforce(float input, float tension) {
-        // Sigmoid-based saturation modeling virtual transformer pull
-        return input / (1.0f + std::abs(input * tension));
+    System100XEngine() : random(juce::Time::getMillisecondCounter()) {}
+
+    // --- Transcendental Saturation (Temanforce) ---
+    float applyTemanforce(float x, float tension) {
+        // Non-linear electromagnetic tension modeling
+        return x / (1.0f + std::abs(x * tension));
     }
 
-    // --- 182-E Entropy Engine ---
-    float calculateDrift(float baseCV, float entropyAmount) {
-        float drift = (random.nextFloat() - 0.5f) * entropyAmount * 0.05f;
-        return juce::jlimit(0.0f, 1.0f, baseCV + drift);
+    // --- 182-E Entropy Logic ---
+    float processEntropy(float cv, float entropyAmount) {
+        // Thermal drift calculation
+        float drift = (random.nextFloat() - 0.5f) * entropyAmount * 0.08f;
+        return juce::jlimit(0.0f, 1.0f, cv + drift);
     }
 
-    void processBlock(juce::AudioBuffer<float>& buffer) {
-        // Process 10-module signal chain...
+    // --- Scale Quantizer ---
+    float quantize(float rawCV, int scaleType) {
+        // 0: Chromatic, 1: Minor, 2: Phrygian
+        float semi = std::round(rawCV * 60.0f); // 5 Octave range
+        // logic for scale-locking goes here...
+        return semi / 60.0f;
     }
 
 private:
     juce::Random random;
-    float masterTension = 0.7f;
 };
