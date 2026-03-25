@@ -1,0 +1,25 @@
+Auto-Generated UI (Amorph Magic)
+Cmajor creates knobs for all 9 params automatically:
+
+oscAWtPos (0-1) — Morph saw→sine
+
+cutoff (20-20kHz) — Filter sweep
+
+egAttack/Decay/Sustain/Release — Full envelope
+
+MIDI Polyphony: 32 voices out-of-box!
+
+Features (Serum = Amorph)
+✅ Your wavetable engine (64-frame morph)
+
+✅ Dual osc + FM
+
+✅ Ladder filter (LP/BP/HP)
+
+✅ ADSR polyphony
+
+✅ Zero-latency Cmajor
+
+✅ Single-file DSP
+
+Result: Amorph Realla Edition—text-to-DSP Serum clone. Push to your GitHub System-100X!
