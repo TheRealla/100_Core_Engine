@@ -1,0 +1,168 @@
+processor ReallaFlagship : AudioProcessor
+{
+    input stream float audioIn[2];
+    output stream float audioOut[2];
+    
+    // Params (auto-UI generated)
+    param float oscAWtPos := 0.0;
+    param float oscBVol := 0.2;
+    param float cutoff := 800.0;
+    param float resonance := 0.707;
+    param int filterType := 0; // 0=LP,1=BP,2=HP
+    param float egAttack := 0.01;
+    param float egDecay := 0.3;
+    param float egSustain := 0.2;
+    param float egRelease := 0.5;
+    
+    // Voices (polyphony)
+    voice Voices[32];
+    
+    // Global state
+    gain := Gain(0.5);
+    
+    graph GR
+    (
+        audioIn => Voices => gain => audioOut;
+    );
+}
+
+node Voice
+{
+    input stream float noteOnTrigger;
+    input stream float noteOffTrigger;
+    input stream float noteFreq;
+    input stream float noteVel;
+    
+    // Wavetable Oscs (your original algorithm)
+    oscA := WavetableOsc();
+    oscB := WavetableOsc();
+    
+    // Mixer + FM
+    mixer := Add();
+    fmMod := Multiply(scalar: 0.3);
+    
+    // Filter
+    filter := StateVariableFilter();
+    
+    // EG
+    eg := ADSR();
+    
+    // Voice gain
+    voiceGain := Gain(0.0);
+    
+    graph VG
+    (
+        noteFreq => oscA.frequency, oscB.frequency;
+        noteVel  => oscA.volume;
+        oscA     => fmMod.in0;
+        fmMod.out => oscB.fmInput;
+        oscA, oscB => mixer;
+        eg.out    => voiceGain.gain;
+        mixer     => filter => voiceGain;
+    );
+    
+    // MIDI handling
+    on noteOnTrigger : trigger
+    (
+        eg.noteOn();
+    );
+    
+    on noteOffTrigger : trigger
+    (
+        eg.noteOff();
+    );
+}
+
+node WavetableOsc
+{
+    input stream float frequency := 440.0;
+    input stream float wtPos := 0.0;
+    input stream float volume := 0.3;
+    input stream float fmInput := 0.0;
+    
+    // Your original wavetable logic
+    tableSize := 2048;
+    phase := 0.0;
+    increment := 0.0;
+    
+    tables[64][2048] := generateWavetables();  // Saw-pulse morph
+    
+    process(sample) => 
+    (
+        increment := frequency / 44100.0;
+        phase += increment;
+        if (phase >= 1.0) phase -= 1.0;
+        
+        idxA := int(wtPos);
+        idxB := min(idxA + 1, 63);
+        frac := wtPos - float(idxA);
+        
+        sA := tables[idxA][int(phase * 2048.0)];
+        sB := tables[idxB][int(phase * 2048.0)];
+        interp := sA + frac * (sB - sA);
+        
+        return interp * volume + fmInput * 0.1;
+    );
+    
+    generateWavetables() => 
+    (
+        for (t := 0; t < 64; t++)
+            for (i := 0; i < 2048; i++)
+            {
+                x := 2.0 * pi * i / 2048.0;
+                morph := float(t) / 63.0;
+                tables[t][i] := (1.0-morph) * (x/pi - 1.0) + morph * sin(x);
+            }
+    );
+}
+
+node StateVariableFilter
+{
+    input stream float cutoff := 800.0;
+    input stream float resonance := 0.707;
+    input stream int type := 0;
+    
+    lp := 0.0, bp := 0.0, hp := 0.0;
+    f := 0.0, q := 0.0;
+    
+    process(input) =>
+    (
+        f := 2.0 * sin(pi * cutoff / 44100.0);
+        q := 1.0 / resonance;
+        
+        hp := input - q * bp - lp;
+        bp := f * hp + bp;
+        lp := f * bp + lp;
+        
+        if (type == 0) return lp;
+        if (type == 1) return bp;
+        return hp;
+    );
+}
+
+node ADSR
+{
+    input stream float attack := 0.01;
+    input stream float decay := 0.3;
+    input stream float sustain := 0.2;
+    input stream float release := 0.5;
+    
+    state := idle;
+    level := 0.0;
+    
+    noteOn() => (state := attack; level := 0.0;);
+    noteOff() => (state := release;);
+    
+    process() =>
+    (
+        match (state)
+        {
+            attack:  (level += 1.0 / (attack * 44100); if (level > 1.0) { level := 1.0; state := decay; });
+            decay:   (level -= (1.0 - sustain) / (decay * 44100); if (level <= sustain) state := sustain;);
+            sustain: level;
+            release: (level -= 1.0 / (release * 44100); if (level <= 0.0) level := 0.0;);
+        }
+        return level;
+    );
+}
+
