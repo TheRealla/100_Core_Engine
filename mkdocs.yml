@@ -1,0 +1,15 @@
+{
+  "bank": "LUCKY-7-001",
+  "patches": [
+    {
+      "name": "Sound Entropy Alpha",
+      "entropy_level": 0.65,
+      "wiring": [
+        {"src": "Sequencer 182", "dst": "Entropy 182-E", "srcPort": "CV Out", "dstPort": "Raw CV"},
+        {"src": "Entropy 182-E", "dst": "Portamento 165", "srcPort": "Drift Out", "dstPort": "Pitch In"},
+        {"src": "Portamento 165", "dst": "VCO 112", "srcPort": "Pitch Out", "dstPort": "Pitch CV"}
+      ],
+      "temanforce": { "tension": 0.82, "mode": "Vari-Mu" }
+    }
+  ]
+}
